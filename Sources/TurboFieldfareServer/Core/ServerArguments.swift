@@ -3,6 +3,7 @@ import TurboFieldfare
 
 public struct ServerArguments: Equatable, Sendable {
     public let model: String
+    public let host: String
     public let port: Int
     public let modelID: String
     public let maxContext: Int
@@ -94,6 +95,7 @@ public struct ServerArguments: Equatable, Sendable {
         environment: [String: String] = ProcessInfo.processInfo.environment
     ) throws -> ServerArguments {
         var model: String?
+        var host = "127.0.0.1"
         var port = 8080
         var modelID = "gemma-4-26b-a4b-it"
         var maxContext = 16_384
@@ -118,6 +120,8 @@ public struct ServerArguments: Equatable, Sendable {
             switch flag {
             case "--model":
                 model = value
+            case "--host":
+                host = value
             case "--port":
                 guard let parsed = Int(value), (1...65_535).contains(parsed) else {
                     throw ServerArgumentError.invalid("--port must be between 1 and 65535")
@@ -221,6 +225,7 @@ public struct ServerArguments: Equatable, Sendable {
                     + " Set \(unbackedContextOverrideVariable)=1 to start anyway.")
         }
         return ServerArguments(model: model,
+                               host: host,
                                port: port,
                                modelID: modelID,
                                maxContext: maxContext,

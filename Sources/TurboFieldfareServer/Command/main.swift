@@ -42,8 +42,9 @@ do {
         queueLimit: arguments.queueLimit,
         backend: backend,
         visionCapability: backend.visionCapability)
-    _ = try await server.start(port: arguments.port)
-    print("TurboFieldfareServer ready at http://127.0.0.1:\(arguments.port) model=\(arguments.modelID) context=\(arguments.maxContext) prompt_cache=\(arguments.promptCacheMode.rawValue) vision=\(backend.visionCapability) vision_residency=\(arguments.visionResidency.rawValue)")
+    _ = try await server.start(host: arguments.host, port: arguments.port)
+    let ip = ((arguments.host == "0.0.0.0") ? getIPAddress() : "127.0.0.1") ?? ""
+    print("TurboFieldfareServer ready at http://\(ip):\(arguments.port) model=\(arguments.modelID) context=\(arguments.maxContext) prompt_cache=\(arguments.promptCacheMode.rawValue) vision=\(backend.visionCapability) vision_residency=\(arguments.visionResidency.rawValue)")
 
     _ = await signals.wait()
     try await server.shutdown()
@@ -51,4 +52,45 @@ do {
 } catch {
     FileHandle.standardError.write(Data("error: \(error)\n".utf8))
     exit(1)
+}
+
+
+
+func getIPAddress() -> String? {
+    var address: String?
+    var ifaddr: UnsafeMutablePointer<ifaddrs>?
+
+    // インターフェース情報を取得
+    guard getifaddrs(&ifaddr) == 0 else { return nil }
+    defer { freeifaddrs(ifaddr) }
+
+    var ptr = ifaddr
+    while ptr != nil {
+        defer { ptr = ptr?.pointee.ifa_next }
+
+        guard let interface = ptr?.pointee else { continue }
+        let addrFamily = interface.ifa_addr.pointee.sa_family
+
+        // IPv4 インターフェースを対象とする場合
+        if addrFamily == UInt8(AF_INET) {
+            let name = String(cString: interface.ifa_name)
+
+            // 特定のインターフェース (例: iPhoneのWi-Fiは通常 "en0") を指定する場合
+            // if name == "en0" {
+
+            var hostname = [CChar](repeating: 0, count: Int(NI_MAXHOST))
+            getnameinfo(interface.ifa_addr,
+                        socklen_t(interface.ifa_addr.pointee.sa_len),
+                        &hostname,
+                        socklen_t(hostname.count),
+                        nil,
+                        socklen_t(0),
+                        NI_NUMERICHOST)
+
+            address = String(cString: &hostname)
+            // if name == "en0" { break } // 必要に応じてループを抜ける
+        }
+    }
+
+    return address
 }
